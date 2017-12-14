@@ -9,10 +9,10 @@ import sys
 import os
 import re
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 access_token = credentials["access_token"]
 g = Github(login_or_token=access_token)
-
 
 '''
 # invalid search characters
@@ -63,20 +63,22 @@ for i in range(thread_count):
 
 '''
 
-pattern = re.compile("(SELECT .* FROM .* WHERE .* = \" \+ .*)")
+SQL_INJECTION_STRING = "(.*(SELECT|INSERT).* \$_GET\[\".*\"\])"
+
+pattern = re.compile(SQL_INJECTION_STRING)
+
 
 def check_code(folder):
-    print("Checking %s" % folder)
+    # print("Checking %s" % folder)
     for dname, dirs, files in os.walk(folder):
         for fname in files:
             fpath = os.path.join(dname, fname)
             if fpath.endswith(".php"):
                 with open(fpath, encoding="UTF-8") as f:
-                    #print("Checking %s " % f)
-                    for i,line in enumerate(f):
+                    # print("Checking %s " % f)
+                    for i, line in enumerate(f):
                         for match in re.finditer(pattern, line):
-                            print('Found on line %s: %s' % (i + 1, match.groups()))
-
+                            print('\tFound on line %s: %s' % (i + 1, match.groups()))
 
 
 def check_repo(repo):
@@ -86,16 +88,22 @@ def check_repo(repo):
     Git("tmp/%s" % repo.full_name).clone(repo.clone_url)
     check_code("tmp/%s" % repo.full_name)
     rmtree("tmp/%s" % repo.full_name)
+    print("Finished %s" % repo.full_name)
 
 
 # Search all repositories with:
 # - 75 to 150 stars
 # - updated in the last 12 months
-repos = g.search_repositories(query='stars:75..150 pushed:>2017-01-08 language:php', sort='stars', order='desc')
+repos = g.search_repositories(query='stars:75..150 pushed:>2017-01-08 language:php', sort='stars', order='asc')
 
 i = 0
-for repo in repos:
-    threading.Thread(target=check_repo, kwargs={'repo': repo}).start()
-    i = i+1
-    if i == 20:
-        break
+with ThreadPoolExecutor(max_workers=8) as executer, open("processed_repos.txt", "r+") as file:
+    lines = tuple(file)
+    for repo in repos:
+        if not lines.__contains__(repo.full_name):  # TODO fix
+            file.write(repo.full_name + "\n")
+            executer.submit(check_repo, repo)
+            i = i+1
+            if i == 5:
+                break
+
