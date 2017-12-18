@@ -1,109 +1,73 @@
-from config import credentials, ignored_repos
+#
+# Crawler for vulnerabilities on GitHub
+#
 
-from github import Github
-from github.GithubException import RateLimitExceededException
-from time import sleep
-from git import Git
-from shutil import rmtree
-import sys
+
+# IMPORTS
 import os
 import re
-import threading
+import mmap
 from concurrent.futures import ThreadPoolExecutor
 
-access_token = credentials["access_token"]
-g = Github(login_or_token=access_token)
+from git import Git
+from github import Github
+from shutil import rmtree
 
-'''
-# invalid search characters
-# . , : ; / \ ` ' " = * ! ? # $ & + ^ | ~ < > ( ) { } [ ]
-
-sql_injection_query = 'SELECT FROM WHERE NOT "bind_param" NOT "prepare" extension:php in:file'
-buffer_overflow_query = 'sprintf OR scanf extension:c extension:cpp in:file'
+import config
 
 
-code_snippets = g.search_code(query=sql_injection_query, sort='indexed', order='desc')
+def check_data(data, pattern):
+    # Checks if the given data contains a match for the given query
+    matches = pattern.findall(data)
+    for match in matches:
+        print(match)
 
 
+def check_file(file):
+    # Check if the given file contains any matches for one of our vulnerabilities
+    with open(file=file, mode="r", encoding="UTF-8") as f:
+        data = mmap.mmap(fileno=f.fileno(), length=0, prot=mmap.PROT_READ)
+        if file.endswith(config.file_types["sql_injection"]):
+            check_data(data, config.regex_queries["sql_injection"])
+        if file.endswith(config.file_types["xss"]):
+            check_data(data, config.regex_queries["xss"])
+        if file.endswith(config.file_types["buffer_overflow"]):
+            check_data(data, config.regex_queries["buffer_overflow"])
 
-def check_code(snippets):
-    last_repo = ""
-    print("Starting")
-    total = 0
-    count = 0
-    for snippet in snippets:
-        if snippet.repository.full_name in ignored_repos['sql_injection']:
-            continue
-        total = total + 1
-        if last_repo != snippet.repository.full_name:
-            sys.stdout.write(".")
-            sys.stdout.flush()
-            count = count + 1
-            if count == 100:
-                print('\n')
-                count = 0
-        if 50 < snippet.repository.stargazers_count:
-            count = 0
-            if last_repo != snippet.repository.full_name:
-                last_repo = snippet.repository.full_name
-                print("\nFound match in repo %s " % last_repo)
-            print("\tIn File: %s " % snippet.path)
-    print("Worked over %d of %d" % (total, snippets.totalCount))
-
-
-check_code(code_snippets.get_page(111111))
-
-
-thread_count = 2
-total = code_snippets.totalCount
-steps = int(total / thread_count)
-
-for i in range(thread_count):
-    threading.Thread(target=check_code, kwargs={'snippets': code_snippets[steps*i:steps*(i+1)-100]}).start()
-
-'''
-
-SQL_INJECTION_STRING = "(.*(SELECT|INSERT).* \$_GET\[\".*\"\])"
-
-pattern = re.compile(SQL_INJECTION_STRING)
-
-
-def check_code(folder):
-    # print("Checking %s" % folder)
+def check_folder(folder):
+    # Check if the given folder contains any files with matches for one of our vunerabilities
     for dname, dirs, files in os.walk(folder):
         for fname in files:
             fpath = os.path.join(dname, fname)
-            if fpath.endswith(".php"):
-                with open(fpath, encoding="UTF-8") as f:
-                    # print("Checking %s " % f)
-                    for i, line in enumerate(f):
-                        for match in re.finditer(pattern, line):
-                            print('\tFound on line %s: %s' % (i + 1, match.groups()))
-
+            if os.stat(fpath).st_size == 0:    # Empty file
+                continue
+            check_file(fpath)
 
 def check_repo(repo):
-    print("Searching in %s" % repo.full_name)
-    if not os.path.exists("tmp/%s" % repo.full_name):
-        os.makedirs("tmp/%s" % repo.full_name)
-    Git("tmp/%s" % repo.full_name).clone(repo.clone_url)
-    check_code("tmp/%s" % repo.full_name)
-    rmtree("tmp/%s" % repo.full_name)
-    print("Finished %s" % repo.full_name)
+    try:
+        print("Searching in %s" % repo.full_name)
+        if not os.path.exists("tmp/%s" % repo.full_name):
+            os.makedirs("tmp/%s" % repo.full_name)
+        Git("tmp/%s" % repo.full_name).clone(repo.clone_url)
+        check_folder("tmp/%s" % repo.full_name)
+        rmtree("tmp/%s" % repo.full_name)
+        print("Finished %s" % repo.full_name)
+    except Exception as e:
+        print(e)
 
 
-# Search all repositories with:
-# - 75 to 150 stars
-# - updated in the last 12 months
-repos = g.search_repositories(query='stars:75..150 pushed:>2017-01-08 language:php', sort='stars', order='asc')
 
+# VARIABLES
+g = Github(login_or_token=config.access_token)
+repos = g.search_repositories(query=config.github_repo_query, sort='stars', order='desc')
 i = 0
-with ThreadPoolExecutor(max_workers=8) as executer, open("processed_repos.txt", "r+") as file:
+with ThreadPoolExecutor(max_workers=config.worker_count) as executer, open(config.progress_file, "r+") as file:
     lines = tuple(file)
+    lines = map(lambda s: s.strip(), lines) # Remove newline characters
     for repo in repos:
-        if not lines.__contains__(repo.full_name):  # TODO fix
+        if not repo.full_name in lines:  # TODO fix
             file.write(repo.full_name + "\n")
             executer.submit(check_repo, repo)
-            i = i+1
-            if i == 5:
+            i = i + 1
+            if i == 1:
                 break
-
