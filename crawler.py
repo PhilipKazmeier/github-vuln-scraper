@@ -48,7 +48,7 @@ def check_repo(repo):
         print("Searching in %s" % repo.full_name)
         if not os.path.exists("tmp/%s" % repo.full_name):
             os.makedirs("tmp/%s" % repo.full_name)
-        Git("tmp/%s" % repo.full_name).clone(repo.clone_url)
+        Git("tmp/%s" % repo.full_name).clone(repo.clone_url, "--depth", "1")
         check_folder("tmp/%s" % repo.full_name)
         rmtree("tmp/%s" % repo.full_name)
         print("Finished %s" % repo.full_name)
