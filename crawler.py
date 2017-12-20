@@ -42,7 +42,7 @@ def search_folder(folder, filetypes, search_pattern):
     for dname, _, files in os.walk(folder):
         for fname in files:
             fpath = os.path.join(dname, fname)
-            if os.stat(fpath).st_size > 0 and has_filetype(fpath, filetypes):
+            if os.stat(fpath).st_size > 0 and has_filetype(fname, filetypes):
                 matches = check_file(fpath, search_pattern)
 
                 # Only append files which actually have any matches
@@ -66,16 +66,15 @@ def check_repository(repo, search_conf):
         print("Exception occurred while searching: %s" % e)
 
 def check_folder(path, search_conf):
-    print("Searching in %s" % path)
     results = search_folder(path, search_conf.filetypes, search_conf.regex)
 
     if len(results) > 0:
+        print("##### Results for: %s" % path)
         for fpath, matches in results:
             print("Possibly vulnerable file: %s" % fpath)
             for match in matches:
                 print("\t%s" % match)
-
-    print("Finished %s" % path)
+        print("")
 
 def clone_repository(rootdir, repo):
     repo_path = "%s/%s" % (rootdir, repo.full_name)
