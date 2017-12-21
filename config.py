@@ -1,7 +1,7 @@
 import re
 from types import SimpleNamespace
 
-worker_count = 8
+worker_count = 1
 access_token = "***REMOVED***"
 
 # Search parameters
@@ -12,8 +12,7 @@ search_params = {
     "max_size": 10000,
 }
 
-processed_base_dir = "processed"
-logs_base_dir = "logs"
+progress_file = "processed_repos.txt"
 
 sql_config = {
     "name": "php-sqlinj",
@@ -35,5 +34,4 @@ bo_cpp_config = {
 
 configs = {c["name"]: SimpleNamespace(**c) for c in (
     sql_config,
-    bo_cpp_config
 )}

@@ -6,9 +6,8 @@
 # IMPORTS
 import os
 import sys
-import time
 import mmap
-from queue import Queue
+import queue
 from concurrent.futures import ThreadPoolExecutor
 
 from git import Git
@@ -16,33 +15,9 @@ from github import Github
 from shutil import rmtree
 
 import config
-import threading
 
 
-class PrintThread(threading.Thread):
-    def __init__(self, queue, output, printToStdin=False):
-        threading.Thread.__init__(self)
-        self.queue = queue
-        self.output = output
-        self.printToStdin = printToStdin
-        if not os.path.exists(self.output):
-            with open(self.output, "w") as file:
-                file.write("")
-
-    def print_line(self, line):
-        with open(self.output, "a", encoding="UTF-8") as file:
-            file.write(line + "\n")
-        if self.printToStdin:
-            print(line)
-
-    def run(self):
-        while True:
-            result = self.queue.get()
-            self.print_line(result)
-            self.queue.task_done()
-
-
-def check_data(data, pattern):
+def check_contents(data, pattern):
     # Checks if the given data contains a match for the given query
     matches = pattern.findall(data)
 
@@ -60,113 +35,118 @@ def check_file(file, search_pattern):
     # Check if the given file contains any matches for one of our vulnerabilities
     with open(file=file, mode="r", encoding="UTF-8") as f:
         map = mmap.mmap(fileno=f.fileno(), length=0, prot=mmap.PROT_READ)
-        return check_data(map, search_pattern)
+        return check_contents(map, search_pattern)
 
 
-def search_folder(folder, filetypes, search_pattern):
+def check_folder(folder, filetypes, search_pattern):
     # Check if the given folder contains any files with matches for one of our vunerabilities
     results = []
     for dname, _, files in os.walk(folder):
         for fname in files:
             fpath = os.path.join(dname, fname)
-            if os.stat(fpath).st_size > 0 and fname.endswith(filetypes):
+            if os.stat(fpath).st_size > 0 and has_filetype(fname, filetypes):
                 matches = check_file(fpath, search_pattern)
 
                 # Only append files which actually have any matches
                 if len(matches) > 0:
-                    results.append((dname[len(folder) + 1:], fname, matches))
+                    results.append((fname, matches))
     return results
+
+
+def has_filetype(fname, filetypes):
+    for ftype in filetypes:
+        if fname.endswith(ftype):
+            return True
+    return False
+
+
+def clone_repository(rootdir, repo):
+    repo_path = "%s/%s" % (rootdir, repo.full_name)
+    if not os.path.exists(repo_path):
+        os.makedirs(repo_path)
+    Git(repo_path).clone(repo.clone_url, "--depth", "1")
+    return repo_path
 
 
 def check_repository(repo, search_conf):
     try:
-
         path = clone_repository("tmp", repo)
-        metadata = {
-            "description": repo.description,
-            "url": repo.html_url
-        }
-        results = check_folder(path, search_conf)
+        results = check_folder(path, search_conf.filetypes, search_conf.regex)
         rmtree(path)
-        return (path, metadata, results)
 
+        return repo.full_name, results
     except Exception as e:
         print("Exception occurred while searching: %s" % e)
+        return repo.full_name, []
 
 
-def check_folder(path, search_conf):
-    results = search_folder(path, search_conf.filetypes, search_conf.regex)
-    return results
+def worker_fn(result_queue, repo_queue, search_conf):
+    while True:
+        repo = repo_queue.get(block=True)
+        if repo is None:
+            break
+        result = check_repository(repo, search_conf)
+        result_queue.put(result)
 
-
-def clone_repository(rootdir, repo):
-    base_dir = "%s/%s" % (rootdir, repo.full_name.split("/")[0])
-    if not os.path.exists(base_dir):
-        os.makedirs(base_dir)
-    Git(base_dir).clone(repo.clone_url, "--depth", "1")
-    return "%s/%s" % (rootdir, repo.full_name)
-
-
-def build_query(stars, last_accessed, max_size, language):
-    query = "stars:%i..%i pushed:>%s size:<%i language:%s" % (
-        stars[0], stars[1], last_accessed, max_size, language
-    )
-    return query
-
-
-def print_results(print_queue, path, metadata, results):
-    if len(results) > 0:
-        print_queue.put("##### Results for: %s" % path[4:])  # remove tmp/ prefix
-        if metadata:
-            print_queue.put("## URL: %s" % metadata["url"])
-            print_queue.put("## Description: %s" % metadata["description"])
-        for dname, fpath, matches in results:
-            print_queue.put("Possibly vulnerable file: %s/%s" % (dname, fpath))
-            for match in matches:
-                print_queue.put("\t%s" % match.decode("UTF-8"))
-        print_queue.put("")
-
-
-def handle_repository(repo, search_conf, file_queue=None, print_queue=None):
-    tuple = check_repository(repo, search_conf)
-
-    if file_queue:
-        file_queue.put(repo.full_name)
-    if print_queue:
-        print_results(print_queue, tuple[0], tuple[1], tuple[2])
+        repo_queue.task_done()
 
 
 def execute_search(repos, search_conf, workers):
-    if not os.path.exists(config.processed_base_dir):
-        os.makedirs(config.processed_base_dir)
-
-    print_queue = Queue()
-    file_queue = Queue()
-
     if not os.path.exists(config.logs_base_dir):
         os.makedirs(config.logs_base_dir)
     if not os.path.exists(config.processed_base_dir):
         os.makedirs(config.processed_base_dir)
-
     log_file = "%s/%s" % (config.logs_base_dir, search_conf.log)
     cache_file = "%s/%s" % (config.processed_base_dir, search_conf.processed)
 
-    p = PrintThread(print_queue, log_file, True)
-    p.setDaemon(True)
-    p.start()
+    with ThreadPoolExecutor() as executor, open(cache_file, "a") as processed_repos_file, \
+        open(log_file, "a", encoding="UTF-8") as logs_file:
+        processed_repos = tuple(processed_repos_file)
+        processed_repos = list(map(lambda s: s.strip(), cached_repos))
 
-    f = PrintThread(file_queue, cache_file)
-    f.setDaemon(True)
-    f.start()
+        repo_queue = queue.Queue()
+        result_queue = queue.Queue()
 
-    with open(cache_file, "r") as file:
-        lines = tuple(file)
-        lines = list(map(lambda s: s.strip(), lines))  # Remove newline characters
+        i = 0
+        submitted = 0
+        while submitted < workers:
+            if repos[i].full_name in processed_repos:
+                repo_queue.put(repos[i])
+                executor.submit(worker_fn, result_queue, repo_queue, search_conf)
+                submitted += 1
+            i += 1
 
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        for repo in repos:
-            if not repo.full_name in lines:
-                executor.submit(handle_repository, repo, search_conf, file_queue, print_queue)
+        try:
+            while True:
+                repo_name, file_matches = result_queue.get(block=True)
+
+                logs_file.write("Checked repository: %s" % repo_name)
+                for fname, matches in file_matches:
+                    logs_file.write("Possibly vulnerable file: %s" % fname)
+                    for match in matches:
+                        logs_file.write("\t%s" % match)
+                logs_file.write("")
+
+                repo_queue.put(repos[i])
+                i += 1
+
+        except KeyboardInterrupt as e:
+            # Put empty items into the queue to signal shutdown
+            map(repo_queue.put, [None] * workers)
+
+
+def build_query(stars=None, last_accessed=None, max_size=None, language=None):
+    query = ""
+    if stars is not None:
+        query = query + "stars:%i..%i " % stars
+    if last_accessed is not None:
+        query = query + "pushed:>%s " % last_accessed
+    if max_size is not None:
+        query = query + "size:<%i " % max_size
+    if language is not None:
+        query = query + "language:%s " % language
+
+    return query
 
 
 if __name__ == '__main__':
