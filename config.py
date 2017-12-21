@@ -18,7 +18,7 @@ sql_config = {
     "name": "php-sqlinj",
     "language": "php",
     "filetypes": ("php"),
-    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?{?\$[a-zA-Z_0-9]+}?.*?\")", re.IGNORECASE | re.MULTILINE),
+    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE)\s.*?{?\$[a-zA-Z_0-9]+}?.*?\")", re.IGNORECASE | re.MULTILINE),
 }
 
 configs = {c["name"]: SimpleNamespace(**c) for c in (
