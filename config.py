@@ -20,7 +20,7 @@ sql_config = {
     "name": "php-sqlinj",
     "language": "php",
     "filetypes": ("php", "html"),
-    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?\s+(FROM|INTO)\s+{?\$[a-zA-Z_0-9]+}?.*?\")", re.IGNORECASE | re.MULTILINE),
+    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?\s+(WHERE|INTO)\s+{?\$[a-zA-Z_0-9]+}?.*?\")", re.IGNORECASE | re.MULTILINE),
     "processed": "php-sqlinj.txt",
     "log": "php-sqlinj.log"
 }

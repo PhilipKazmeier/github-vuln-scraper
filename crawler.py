@@ -8,6 +8,7 @@ import os
 import sys
 import mmap
 import queue
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 from git import Git
@@ -34,8 +35,8 @@ def check_contents(data, pattern):
 def check_file(file, search_pattern):
     # Check if the given file contains any matches for one of our vulnerabilities
     with open(file=file, mode="r", encoding="UTF-8") as f:
-        map = mmap.mmap(fileno=f.fileno(), length=0, prot=mmap.PROT_READ)
-        return check_contents(map, search_pattern)
+        fmap = mmap.mmap(fileno=f.fileno(), length=0, prot=mmap.PROT_READ)
+        return check_contents(fmap, search_pattern)
 
 
 def check_folder(folder, filetypes, search_pattern):
@@ -44,7 +45,7 @@ def check_folder(folder, filetypes, search_pattern):
     for dname, _, files in os.walk(folder):
         for fname in files:
             fpath = os.path.join(dname, fname)
-            if os.stat(fpath).st_size > 0 and has_filetype(fname, filetypes):
+            if os.path.exists(fpath) and os.stat(fpath).st_size > 0 and has_filetype(fname, filetypes):
                 matches = check_file(fpath, search_pattern)
 
                 # Only append files which actually have any matches
@@ -77,7 +78,8 @@ def check_repository(repo, search_conf):
         return repo, results
     except Exception as e:
         print("Exception occurred while searching: %s" % e)
-        return repo.full_name, []
+        traceback.print_exc(file=sys.stderr)
+        return repo, []
 
 
 def worker_fn(result_queue, repo_queue, search_conf):
@@ -96,6 +98,12 @@ def printAndLog(output_file, data):
     output_file.write(data + "\n")
 
 
+def find_next_unprocessed(repos, processed_repos, i):
+    while repos[i].full_name in processed_repos:
+        i += 1
+    return i + 1, repos[i]
+
+
 def execute_search(repos, search_conf, workers):
     if not os.path.exists(config.logs_base_dir):
         os.makedirs(config.logs_base_dir)
@@ -106,6 +114,10 @@ def execute_search(repos, search_conf, workers):
 
     with ThreadPoolExecutor() as executor, open(cache_file, "a+") as processed_repos_file, \
             open(log_file, "a+", encoding="UTF-8") as logs_file:
+
+        # Apparently there is no mode to open/create a file for read/write from the beginning
+        # so we have to manually position the cursor
+        processed_repos_file.seek(0)
         processed_repos = tuple(processed_repos_file)
         processed_repos = list(map(lambda s: s.strip(), processed_repos))
 
@@ -113,13 +125,10 @@ def execute_search(repos, search_conf, workers):
         result_queue = queue.Queue()
 
         i = 0
-        submitted = 0
-        while submitted < workers:
-            if not repos[i].full_name in processed_repos:
-                repo_queue.put(repos[i])
-                executor.submit(worker_fn, result_queue, repo_queue, search_conf)
-                submitted += 1
-            i += 1
+        for _ in range(workers):
+            i, next_repo = find_next_unprocessed(repos, processed_repos, i)
+            repo_queue.put(next_repo)
+            executor.submit(worker_fn, result_queue, repo_queue, search_conf)
 
         try:
             while True:
@@ -136,8 +145,9 @@ def execute_search(repos, search_conf, workers):
                     printAndLog(logs_file, "")
 
                 processed_repos_file.write(repo.full_name + "\n")
-                repo_queue.put(repos[i])
-                i += 1
+                processed_repos_file.flush()
+                i, next_repo = find_next_unprocessed(repos, processed_repos, i)
+                repo_queue.put(next_repo)
 
         except KeyboardInterrupt as e:
             # Put empty items into the queue to signal shutdown
