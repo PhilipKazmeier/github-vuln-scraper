@@ -49,7 +49,7 @@ def check_folder(folder, filetypes, search_pattern):
 
                 # Only append files which actually have any matches
                 if len(matches) > 0:
-                    results.append((fname, matches))
+                    results.append((dname[len(folder) + 1:], fname, matches))
     return results
 
 
@@ -74,7 +74,7 @@ def check_repository(repo, search_conf):
         results = check_folder(path, search_conf.filetypes, search_conf.regex)
         rmtree(path)
 
-        return repo.full_name, results
+        return repo, results
     except Exception as e:
         print("Exception occurred while searching: %s" % e)
         return repo.full_name, []
@@ -91,6 +91,11 @@ def worker_fn(result_queue, repo_queue, search_conf):
         repo_queue.task_done()
 
 
+def printAndLog(output_file, data):
+    print(data)
+    output_file.write(data + "\n")
+
+
 def execute_search(repos, search_conf, workers):
     if not os.path.exists(config.logs_base_dir):
         os.makedirs(config.logs_base_dir)
@@ -99,10 +104,10 @@ def execute_search(repos, search_conf, workers):
     log_file = "%s/%s" % (config.logs_base_dir, search_conf.log)
     cache_file = "%s/%s" % (config.processed_base_dir, search_conf.processed)
 
-    with ThreadPoolExecutor() as executor, open(cache_file, "a") as processed_repos_file, \
-        open(log_file, "a", encoding="UTF-8") as logs_file:
+    with ThreadPoolExecutor() as executor, open(cache_file, "a+") as processed_repos_file, \
+            open(log_file, "a+", encoding="UTF-8") as logs_file:
         processed_repos = tuple(processed_repos_file)
-        processed_repos = list(map(lambda s: s.strip(), cached_repos))
+        processed_repos = list(map(lambda s: s.strip(), processed_repos))
 
         repo_queue = queue.Queue()
         result_queue = queue.Queue()
@@ -110,7 +115,7 @@ def execute_search(repos, search_conf, workers):
         i = 0
         submitted = 0
         while submitted < workers:
-            if repos[i].full_name in processed_repos:
+            if not repos[i].full_name in processed_repos:
                 repo_queue.put(repos[i])
                 executor.submit(worker_fn, result_queue, repo_queue, search_conf)
                 submitted += 1
@@ -118,15 +123,19 @@ def execute_search(repos, search_conf, workers):
 
         try:
             while True:
-                repo_name, file_matches = result_queue.get(block=True)
+                repo, file_matches = result_queue.get(block=True)
 
-                logs_file.write("Checked repository: %s" % repo_name)
-                for fname, matches in file_matches:
-                    logs_file.write("Possibly vulnerable file: %s" % fname)
-                    for match in matches:
-                        logs_file.write("\t%s" % match)
-                logs_file.write("")
+                if len(file_matches) > 0:
+                    printAndLog(logs_file, "##### Checked repository: %s" % repo.full_name)
+                    printAndLog(logs_file, "### URL: %s" % repo.html_url)
+                    printAndLog(logs_file, "### Description: %s" % repo.description)
+                    for dname, fname, matches in file_matches:
+                        printAndLog(logs_file, "Possibly vulnerable file: %s/%s" % (dname, fname))
+                        for match in matches:
+                            printAndLog(logs_file, "\t%s" % match.decode("UTF-8"))
+                    printAndLog(logs_file, "")
 
+                processed_repos_file.write(repo.full_name + "\n")
                 repo_queue.put(repos[i])
                 i += 1
 
