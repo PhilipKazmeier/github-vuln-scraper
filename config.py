@@ -1,7 +1,7 @@
 import re
 from types import SimpleNamespace
 
-worker_count = 1
+worker_count = 8
 access_token = "***REMOVED***"
 
 # Search parameters
@@ -12,15 +12,28 @@ search_params = {
     "max_size": 10000,
 }
 
-progress_file = "processed_repos.txt"
+processed_base_dir = "processed"
+logs_base_dir = "logs"
 
 sql_config = {
     "name": "php-sqlinj",
     "language": "php",
-    "filetypes": ("php"),
-    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?{?\$[a-zA-Z_0-9]+}?.*?\")", re.IGNORECASE | re.MULTILINE),
+    "filetypes": ("php", "html"),
+    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?\s+(FROM|INTO)\s+{?\$[a-zA-Z_0-9]+}?.*?\")", re.IGNORECASE | re.MULTILINE),
+    "processed": "php-sqlinj.txt",
+    "log": "php-sqlinj.log"
+}
+
+bo_cpp_config = {
+    "name": "cpp-bo",
+    "language": "cpp",  # TODO multiple languages
+    "filetypes": ("cpp", "c"),
+    "regex": re.compile(b"((printf|strcpy|strcmp)\(.*,\s*.*\))", re.IGNORECASE | re.MULTILINE),
+    "processed": "cpp-bo.txt",
+    "log": "cpp-bo.log"
 }
 
 configs = {c["name"]: SimpleNamespace(**c) for c in (
     sql_config,
+    bo_cpp_config
 )}
