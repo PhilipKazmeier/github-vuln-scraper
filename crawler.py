@@ -107,8 +107,8 @@ def execute_search(repos, search_conf, workers):
         os.makedirs(config.logs_base_dir)
     if not os.path.exists(config.processed_base_dir):
         os.makedirs(config.processed_base_dir)
-    log_file = "%s/%s" % (config.logs_base_dir, search_conf.log)
-    cache_file = "%s/%s" % (config.processed_base_dir, search_conf.processed)
+    log_file = "%s/%s.log" % (config.logs_base_dir, search_conf.name)
+    cache_file = "%s/%s.txt" % (config.processed_base_dir, search_conf.name)
 
     with ThreadPoolExecutor() as executor, open(cache_file, "a+") as processed_repos_file, \
             open(log_file, "a+", encoding="UTF-8") as logs_file:
