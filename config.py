@@ -12,23 +12,25 @@ search_params = {
     "max_size": 10000,
 }
 
-
 processed_base_dir = "processed"
 logs_base_dir = "logs"
 
 sql_config = {
     "name": "php-sqlinj",
-    "language": "php",
-    "filetypes": ("php", "html"),
-    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?\s+(WHERE|INTO)\s+{?\$[a-zA-Z_0-9]+}?.*?\")", re.IGNORECASE | re.MULTILINE),
+    "description": "Searches for SQL injections in PHP code",
+    "languages": ("php", "html"),
+    "file_types": ("php", "html"),
+    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?\s+(WHERE|INTO)\s+{?\$[a-zA-Z_0-9]+}?.*?\")",
+                        re.IGNORECASE | re.MULTILINE),
     "processed": "php-sqlinj.txt",
     "log": "php-sqlinj.log"
 }
 
 bo_cpp_config = {
     "name": "cpp-bo",
-    "language": "cpp",  # TODO multiple languages
-    "filetypes": ("cpp", "c"),
+    "description": "Searches for Buffer Overflows in C and C++ code",
+    "languages": ("c", "cpp"),
+    "file_types": ("cpp", "c"),
     "regex": re.compile(b"((printf|strcpy|strcmp)\(.*,\s*.*\))", re.IGNORECASE | re.MULTILINE),
     "processed": "cpp-bo.txt",
     "log": "cpp-bo.log"
@@ -36,4 +38,5 @@ bo_cpp_config = {
 
 configs = {c["name"]: SimpleNamespace(**c) for c in (
     sql_config,
+    bo_cpp_config
 )}
