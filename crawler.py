@@ -6,13 +6,15 @@
 # IMPORTS
 import os
 import sys
+import time
 import mmap
 import queue
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
 from git import Git
-from github import Github
+from github import Github, RateLimitExceededException
 from shutil import rmtree
 
 import config
@@ -98,10 +100,34 @@ def printAndLog(output_file, data):
     output_file.write(data + "\n")
 
 
-def find_next_unprocessed(repos, processed_repos, i):
-    while repos[i].full_name in processed_repos:
+def find_next_unprocessed_safely(repos, processed_repos, i):
+    while access_list_safely(repos, i).full_name in processed_repos:
         i += 1
-    return i + 1, repos[i]
+    return i + 1, access_list_safely(repos, i)
+
+
+def access_list_safely(lizt, index):
+    while True:
+        try:
+            return lizt[index]
+        except RateLimitExceededException as e:
+            print(e)
+            print("Rate limit exceeded, sleeping for short duration!", file=sys.stderr)
+            time.sleep(5)
+
+
+def get_utc_timestamp():
+    return int((datetime.utcnow() - datetime(1970, 1, 1, 0, 0, 0, 0)).total_seconds())
+
+
+def limit_rate(ghub):
+    remaining_tries = ghub.rate_limiting[0]
+    seconds_to_reset = max(ghub.rate_limiting_resettime - get_utc_timestamp(), 0)
+
+    print(remaining_tries)
+    if remaining_tries < 1:
+        print("Rate limit exceeded - sleeping until reset!")
+        time.sleep(seconds_to_reset)
 
 
 def execute_search(repos, search_conf, workers):
@@ -126,7 +152,7 @@ def execute_search(repos, search_conf, workers):
 
         i = 0
         for _ in range(workers):
-            i, next_repo = find_next_unprocessed(repos, processed_repos, i)
+            i, next_repo = find_next_unprocessed_safely(repos, processed_repos, i)
             repo_queue.put(next_repo)
             executor.submit(worker_fn, result_queue, repo_queue, search_conf)
 
@@ -144,9 +170,10 @@ def execute_search(repos, search_conf, workers):
                             printAndLog(logs_file, "\t%s" % match.decode("UTF-8"))
                     printAndLog(logs_file, "")
 
+                limit_rate(ghub)
                 processed_repos_file.write(repo.full_name + "\n")
                 processed_repos_file.flush()
-                i, next_repo = find_next_unprocessed(repos, processed_repos, i)
+                i, next_repo = find_next_unprocessed_safely(repos, processed_repos, i)
                 repo_queue.put(next_repo)
 
         except KeyboardInterrupt as e:
