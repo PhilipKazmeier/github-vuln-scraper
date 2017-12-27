@@ -12,28 +12,39 @@ search_params = {
     "max_size": 10000,
 }
 
-
 processed_base_dir = "processed"
 logs_base_dir = "logs"
 
-sql_config = {
+# https://regexr.com/3ie67
+php_sql_config = {
     "name": "php-sqlinj",
-    "language": "php",
-    "filetypes": ("php", "html"),
-    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?\s+(WHERE|INTO)\s+{?\$[a-zA-Z_0-9]+}?.*?\")", re.IGNORECASE | re.MULTILINE),
-    "processed": "php-sqlinj.txt",
-    "log": "php-sqlinj.log"
+    "description": "Searches for SQL injections in PHP code",
+    "languages": ("php", "html"),
+    "file_types": ("php", "html"),
+    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?\s(WHERE|INTO)\s+.*{?\$[a-zA-Z_0-9]+}?.*?\")",
+                        re.IGNORECASE | re.MULTILINE)
 }
 
+# https://regexr.com/3ie5u
+php_xss_config = {
+    "name": "php-xss",
+    "description": "Searches for XSS in PHP code",
+    "languages": ("php"),
+    "file_types": ("php", "html"),
+    "regex": re.compile(b"(echo \$_GET\[[\"\'][A-z0-9-_]*[\"\']\])", re.IGNORECASE | re.MULTILINE)
+}
+
+# https://regexr.com/3ie6d
 bo_cpp_config = {
     "name": "cpp-bo",
-    "language": "cpp",  # TODO multiple languages
-    "filetypes": ("cpp", "c"),
-    "regex": re.compile(b"((printf|strcpy|strcmp)\(.*,\s*.*\))", re.IGNORECASE | re.MULTILINE),
-    "processed": "cpp-bo.txt",
-    "log": "cpp-bo.log"
+    "description": "Searches for Buffer Overflows in C and C++ code",
+    "languages": ("c", "cpp"),
+    "file_types": ("cpp", "c"),
+    "regex": re.compile(b"((printf|strcpy|strcmp)\(.*,\s*.*\))", re.IGNORECASE | re.MULTILINE)
 }
 
 configs = {c["name"]: SimpleNamespace(**c) for c in (
-    sql_config,
+    php_sql_config,
+    php_xss_config,
+    bo_cpp_config
 )}

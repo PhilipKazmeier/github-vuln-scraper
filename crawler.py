@@ -8,7 +8,7 @@ import os
 import sys
 import time
 import mmap
-import queue
+from queue import Queue
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -41,13 +41,13 @@ def check_file(file, search_pattern):
         return check_contents(fmap, search_pattern)
 
 
-def check_folder(folder, filetypes, search_pattern):
+def check_folder(folder, file_types, search_pattern):
     # Check if the given folder contains any files with matches for one of our vunerabilities
     results = []
     for dname, _, files in os.walk(folder):
         for fname in files:
             fpath = os.path.join(dname, fname)
-            if os.path.exists(fpath) and os.stat(fpath).st_size > 0 and has_filetype(fname, filetypes):
+            if os.path.exists(fpath) and os.stat(fpath).st_size > 0 and fname.endswith(file_types):
                 matches = check_file(fpath, search_pattern)
 
                 # Only append files which actually have any matches
@@ -56,25 +56,20 @@ def check_folder(folder, filetypes, search_pattern):
     return results
 
 
-def has_filetype(fname, filetypes):
-    for ftype in filetypes:
-        if fname.endswith(ftype):
-            return True
-    return False
-
-
-def clone_repository(rootdir, repo):
-    repo_path = "%s/%s" % (rootdir, repo.full_name)
-    if not os.path.exists(repo_path):
-        os.makedirs(repo_path)
-    Git(repo_path).clone(repo.clone_url, "--depth", "1")
-    return repo_path
+def clone_repository(root_dir, repo):
+    # Clones the given repo in a folder in the given directory
+    clone_path = "%s/%s" % (root_dir, repo.owner.login)
+    if not os.path.exists(clone_path):
+        os.makedirs(clone_path)
+    Git(clone_path).clone(repo.clone_url, "--depth", "1")
+    return "%s/%s" % (root_dir, repo.full_name)
 
 
 def check_repository(repo, search_conf):
+    # Checks the repository with the given search configuration
     try:
         path = clone_repository("tmp", repo)
-        results = check_folder(path, search_conf.filetypes, search_conf.regex)
+        results = check_folder(path, search_conf.file_types, search_conf.regex)
         rmtree(path)
 
         return repo, results
@@ -95,12 +90,15 @@ def worker_fn(result_queue, repo_queue, search_conf):
         repo_queue.task_done()
 
 
-def printAndLog(output_file, data):
+def print_and_log(output_file, data):
+    # Print the given data to stdout and to the given file
     print(data)
     output_file.write(data + "\n")
+    output_file.flush()
 
 
 def find_next_unprocessed_safely(repos, processed_repos, i):
+    # Return the next repository that has not already been processed (is not in processed_repos)
     while access_list_safely(repos, i).full_name in processed_repos:
         i += 1
     return i + 1, access_list_safely(repos, i)
@@ -135,8 +133,8 @@ def execute_search(repos, search_conf, workers):
         os.makedirs(config.logs_base_dir)
     if not os.path.exists(config.processed_base_dir):
         os.makedirs(config.processed_base_dir)
-    log_file = "%s/%s" % (config.logs_base_dir, search_conf.log)
-    cache_file = "%s/%s" % (config.processed_base_dir, search_conf.processed)
+    log_file = "%s/%s.log" % (config.logs_base_dir, search_conf.name)
+    cache_file = "%s/%s.txt" % (config.processed_base_dir, search_conf.name)
 
     with ThreadPoolExecutor() as executor, open(cache_file, "a+") as processed_repos_file, \
             open(log_file, "a+", encoding="UTF-8") as logs_file:
@@ -147,8 +145,8 @@ def execute_search(repos, search_conf, workers):
         processed_repos = tuple(processed_repos_file)
         processed_repos = list(map(lambda s: s.strip(), processed_repos))
 
-        repo_queue = queue.Queue()
-        result_queue = queue.Queue()
+        repo_queue = Queue()
+        result_queue = Queue()
 
         i = 0
         for _ in range(workers):
@@ -161,14 +159,14 @@ def execute_search(repos, search_conf, workers):
                 repo, file_matches = result_queue.get(block=True)
 
                 if len(file_matches) > 0:
-                    printAndLog(logs_file, "##### Checked repository: %s" % repo.full_name)
-                    printAndLog(logs_file, "### URL: %s" % repo.html_url)
-                    printAndLog(logs_file, "### Description: %s" % repo.description)
+                    print_and_log(logs_file, "##### Checked repository: %s" % repo.full_name)
+                    print_and_log(logs_file, "### URL: %s" % repo.html_url)
+                    print_and_log(logs_file, "### Description: %s" % repo.description)
                     for dname, fname, matches in file_matches:
-                        printAndLog(logs_file, "Possibly vulnerable file: %s/%s" % (dname, fname))
+                        print_and_log(logs_file, "Possibly vulnerable file: %s/%s" % (dname, fname))
                         for match in matches:
-                            printAndLog(logs_file, "\t%s" % match.decode("UTF-8"))
-                    printAndLog(logs_file, "")
+                            print_and_log(logs_file, "\t%s" % match.decode("UTF-8"))
+                    print_and_log(logs_file, "")
 
                 limit_rate(ghub)
                 processed_repos_file.write(repo.full_name + "\n")
@@ -181,16 +179,27 @@ def execute_search(repos, search_conf, workers):
             map(repo_queue.put, [None] * workers)
 
 
-def build_query(stars=None, last_accessed=None, max_size=None, language=None):
+def build_query(stars=None, forks=None, last_accessed=None, max_size=None, languages=None, topics=None, org=None,
+                user=None):
     query = ""
     if stars is not None:
         query = query + "stars:%i..%i " % stars
+    if forks is not None:
+        query = query + "forks:%i..%i " % forks
     if last_accessed is not None:
         query = query + "pushed:>%s " % last_accessed
     if max_size is not None:
         query = query + "size:<%i " % max_size
-    if language is not None:
-        query = query + "language:%s " % language
+    if languages is not None:
+        for language in languages:
+            query = query + "language:%s " % language
+    if topics is not None:
+        for topic in topics:
+            query = query + "topic: %s " % topic
+    if org is not None:
+        query = query + "org: %s " % org
+    if user is not None:
+        query = query + "user: %s " % user
 
     return query
 
@@ -198,14 +207,16 @@ def build_query(stars=None, last_accessed=None, max_size=None, language=None):
 if __name__ == '__main__':
 
     if len(sys.argv) < 2:
-        print("Please specify a search config name")
+        print("Please specify one of the following search config names:")
+        for key in config.configs:
+            print("  %10s: %s" % (key, config.configs[key].description))
         sys.exit(1)
 
     search_conf = config.configs[sys.argv[1]]
     print("Using configuration: %s" % search_conf.name)
 
     ghub = Github(login_or_token=config.access_token)
-    query = build_query(language=search_conf.language, **config.search_params)
+    query = build_query(languages=search_conf.languages, **config.search_params)
     repos = ghub.search_repositories(query=query, sort='stars', order='desc')
 
     execute_search(repos, search_conf, config.worker_count)
