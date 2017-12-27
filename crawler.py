@@ -108,8 +108,7 @@ def access_list_safely(lizt, index):
     while True:
         try:
             return lizt[index]
-        except RateLimitExceededException as e:
-            print(e)
+        except RateLimitExceededException:
             print("Rate limit exceeded, sleeping for short duration!", file=sys.stderr)
             time.sleep(5)
 
@@ -122,7 +121,6 @@ def limit_rate(ghub):
     remaining_tries = ghub.rate_limiting[0]
     seconds_to_reset = max(ghub.rate_limiting_resettime - get_utc_timestamp(), 0)
 
-    print(remaining_tries)
     if remaining_tries < 1:
         print("Rate limit exceeded - sleeping until reset!")
         time.sleep(seconds_to_reset)
