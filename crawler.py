@@ -45,6 +45,9 @@ def check_folder(folder, file_types, search_pattern):
     # Check if the given folder contains any files with matches for one of our vunerabilities
     results = []
     for dname, _, files in os.walk(folder):
+        # skip all paths that contain test, to avoid false positives
+        if "test" in dname:
+            continue
         for fname in files:
             fpath = os.path.join(dname, fname)
             if os.path.exists(fpath) and os.stat(fpath).st_size > 0 and fname.endswith(file_types):
@@ -116,7 +119,7 @@ def access_list_safely(lizt, index):
             return lizt[index]
         except RateLimitExceededException:
             print("Rate limit exceeded, sleeping for short duration!", file=sys.stderr)
-            time.sleep(5)
+            time.sleep(15)
 
 
 def get_utc_timestamp():
@@ -191,9 +194,9 @@ def execute_search(ghub, search_conf, workers):
                     for dname, fname, matches in file_matches:
                         print_and_log(logs_file, "Possibly vulnerable file: %s/%s" % (dname, fname))
                         for match in matches:
-                            # truncate line to a max length of 100 characters
+                            # truncate line to a max length of 150 characters
                             line = "\t%s" % match.decode("UTF-8")
-                            line = (line[:100] + '..') if len(line) > 100 else line
+                            line = (line[:150] + ' ...') if len(line) > 150 else line
                             print_and_log(logs_file, line)
                     print_and_log(logs_file, "")
 

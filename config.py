@@ -4,7 +4,7 @@ from types import SimpleNamespace
 worker_count = 8
 access_token = "***REMOVED***"
 
-# Search parameters
+# Search parameters for the GitHub API
 # github_repo_query = 'stars:75..150 pushed:>2017-01-08 size:<=10000'
 search_params = {
     "stars": (75, 150),
@@ -15,10 +15,21 @@ search_params = {
 processed_base_dir = "processed"
 logs_base_dir = "logs"
 
-# https://regexr.com/3ie67
+# https://regexr.com/3iifi
 php_sql_config = {
     "name": "php-sqlinj",
     "description": "Searches for SQL injections in PHP code",
+    "languages": ("php", "html"),
+    "file_types": ("php", "html"),
+    "regex": re.compile(
+        b"(\"\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s+.*?({?\$[a-zA-Z_0-9]+}?).*?\")",
+        re.IGNORECASE | re.MULTILINE)
+}
+
+# https://regexr.com/3iig7
+php_simple_sql_config = {
+    "name": "php-simp-sqlinj",
+    "description": "Searches for SQL injections in PHP code with _GET or _POST or _REQUEST",
     "languages": ("php", "html"),
     "file_types": ("php", "html"),
     "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?\s(WHERE|INTO)\s+.*{?\$[a-zA-Z_0-9]+}?.*?\")",
@@ -45,6 +56,7 @@ bo_cpp_config = {
 
 configs = {c["name"]: SimpleNamespace(**c) for c in (
     php_sql_config,
+    php_simple_sql_config,
     php_xss_config,
     bo_cpp_config
 )}
