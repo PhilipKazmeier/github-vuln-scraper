@@ -32,8 +32,9 @@ php_simple_sql_config = {
     "description": "Searches for SQL injections in PHP code with _GET or _POST or _REQUEST",
     "languages": ("php", "html"),
     "file_types": ("php", "html"),
-    "regex": re.compile(b"(\"\s*(SELECT|INSERT|DELETE).*?\s(WHERE|INTO)\s+.*{?\$[a-zA-Z_0-9]+}?.*?\")",
-                        re.IGNORECASE | re.MULTILINE)
+    "regex": re.compile(
+        b"(\"\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s+.*?({?_(GET|POST|REQUEST)\[.*?\]))",
+        re.IGNORECASE | re.MULTILINE)
 }
 
 # https://regexr.com/3ie5u

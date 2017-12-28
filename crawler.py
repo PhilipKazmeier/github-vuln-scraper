@@ -249,7 +249,7 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("Please specify one of the following search config names:")
         for key in config.configs:
-            print("  %10s: %s" % (key, config.configs[key].description))
+            print("  %15s: %s" % (key, config.configs[key].description))
         sys.exit(1)
 
     search_conf = config.configs[sys.argv[1]]
