@@ -37,6 +37,17 @@ php_simple_sql_config = {
         re.IGNORECASE | re.MULTILINE)
 }
 
+# https://regexr.com/3iik2
+node_sql_config = {
+    "name": "node-sqlinj",
+    "description": "Searches for SQL injections in NodeJS/Javascript code",
+    "languages": ("js"),
+    "file_types": ("js"),
+    "regex": re.compile(
+        b"([\"|\']\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s.*?[\"|\']\s*\+\s*[a-zA-Z_0-9]+)",
+        re.IGNORECASE | re.MULTILINE)
+}
+
 # https://regexr.com/3ie5u
 php_xss_config = {
     "name": "php-xss",
@@ -58,6 +69,7 @@ bo_cpp_config = {
 configs = {c["name"]: SimpleNamespace(**c) for c in (
     php_sql_config,
     php_simple_sql_config,
+    node_sql_config,
     php_xss_config,
     bo_cpp_config
 )}
