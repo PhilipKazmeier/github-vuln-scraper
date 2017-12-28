@@ -191,7 +191,10 @@ def execute_search(ghub, search_conf, workers):
                     for dname, fname, matches in file_matches:
                         print_and_log(logs_file, "Possibly vulnerable file: %s/%s" % (dname, fname))
                         for match in matches:
-                            print_and_log(logs_file, "\t%s" % match.decode("UTF-8"))
+                            # truncate line to a max length of 100 characters
+                            line = "\t%s" % match.decode("UTF-8")
+                            line = (line[:100] + '..') if len(line) > 100 else line
+                            print_and_log(logs_file, line)
                     print_and_log(logs_file, "")
 
                 limit_rate(ghub)
