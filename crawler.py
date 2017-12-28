@@ -11,7 +11,7 @@ import mmap
 from queue import Queue
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from git import Git
 from github import Github, RateLimitExceededException
@@ -99,14 +99,20 @@ def print_and_log(output_file, data):
 
 def find_next_unprocessed_safely(repos, processed_repos, i):
     # Return the next repository that has not already been processed (is not in processed_repos)
-    while access_list_safely(repos, i).full_name in processed_repos:
+    while True:
+        repo = access_list_safely(repos, i)
+        if repo is None or repo.full_name not in processed_repos:
+            return i + 1, repo
         i += 1
-    return i + 1, access_list_safely(repos, i)
 
 
 def access_list_safely(lizt, index):
     while True:
         try:
+            # If the total count of the lizt is exceeded or the total count of the API is exceeded return None to
+            # trigger a reload of the repos
+            if index >= min(lizt.totalCount, 1000):
+                return None
             return lizt[index]
         except RateLimitExceededException:
             print("Rate limit exceeded, sleeping for short duration!", file=sys.stderr)
@@ -126,13 +132,29 @@ def limit_rate(ghub):
         time.sleep(seconds_to_reset)
 
 
-def execute_search(repos, search_conf, workers):
+def getDateOfPreviousMonth(date):
+    one_day = timedelta(days=1)
+    one_month_earlier = date - one_day
+    while one_month_earlier.month == date.month or one_month_earlier.day > date.day:
+        one_month_earlier -= one_day
+    return one_month_earlier
+
+
+def getRepos(ghub, search_conf, to_date):
+    from_date = getDateOfPreviousMonth(to_date)
+    query = build_query(languages=search_conf.languages, **config.search_params, created=(from_date, to_date))
+    return ghub.search_repositories(query=query, sort='stars', order='desc'), from_date
+
+
+def execute_search(ghub, search_conf, workers):
     if not os.path.exists(config.logs_base_dir):
         os.makedirs(config.logs_base_dir)
     if not os.path.exists(config.processed_base_dir):
         os.makedirs(config.processed_base_dir)
     log_file = "%s/%s.log" % (config.logs_base_dir, search_conf.name)
     cache_file = "%s/%s.txt" % (config.processed_base_dir, search_conf.name)
+
+    repos, last_date = getRepos(ghub, search_conf, datetime.today().date())
 
     with ThreadPoolExecutor() as executor, open(cache_file, "a+") as processed_repos_file, \
             open(log_file, "a+", encoding="UTF-8") as logs_file:
@@ -148,7 +170,13 @@ def execute_search(repos, search_conf, workers):
 
         i = 0
         for _ in range(workers):
-            i, next_repo = find_next_unprocessed_safely(repos, processed_repos, i)
+            next_repo = None
+            while next_repo is None:
+                i, next_repo = find_next_unprocessed_safely(repos, processed_repos, i)
+                # If no new repo was found, load repos of previous month
+                if next_repo is None:
+                    repos, last_date = getRepos(ghub, search_conf, last_date)
+                    i = 0
             repo_queue.put(next_repo)
             executor.submit(worker_fn, result_queue, repo_queue, search_conf)
 
@@ -169,7 +197,13 @@ def execute_search(repos, search_conf, workers):
                 limit_rate(ghub)
                 processed_repos_file.write(repo.full_name + "\n")
                 processed_repos_file.flush()
-                i, next_repo = find_next_unprocessed_safely(repos, processed_repos, i)
+                next_repo = None
+                while next_repo is None:
+                    i, next_repo = find_next_unprocessed_safely(repos, processed_repos, i)
+                    # If no new repo was found, load repos of previous month
+                    if next_repo is None:
+                        repos, last_date = getRepos(ghub, search_conf, last_date)
+                        i = 0
                 repo_queue.put(next_repo)
 
         except KeyboardInterrupt as e:
@@ -178,7 +212,7 @@ def execute_search(repos, search_conf, workers):
 
 
 def build_query(stars=None, forks=None, last_accessed=None, max_size=None, languages=None, topics=None, org=None,
-                user=None):
+                user=None, created=None):
     query = ""
     if stars is not None:
         query = query + "stars:%i..%i " % stars
@@ -198,6 +232,8 @@ def build_query(stars=None, forks=None, last_accessed=None, max_size=None, langu
         query = query + "org: %s " % org
     if user is not None:
         query = query + "user: %s " % user
+    if created is not None:
+        query = query + "created:%s..%s" % created
 
     return query
 
@@ -214,7 +250,5 @@ if __name__ == '__main__':
     print("Using configuration: %s" % search_conf.name)
 
     ghub = Github(login_or_token=config.access_token)
-    query = build_query(languages=search_conf.languages, **config.search_params)
-    repos = ghub.search_repositories(query=query, sort='stars', order='desc')
 
-    execute_search(repos, search_conf, config.worker_count)
+    execute_search(ghub, search_conf, config.worker_count)
