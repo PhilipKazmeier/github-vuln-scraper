@@ -23,6 +23,7 @@ configs = {c["name"]: SimpleNamespace(**c) for c in (
     patterns.php_sql_config,
     patterns.php_simple_sql_config,
     patterns.node_sql_config,
+    patterns.java_sql_config,
     patterns.php_xss_config,
     patterns.bo_cpp_config
 )}
