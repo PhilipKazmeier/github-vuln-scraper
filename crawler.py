@@ -110,7 +110,7 @@ def execute_search(search_conf, searcher, workers):
     log_file = "%s/%s.log" % (config.logs_base_dir, search_conf.name)
     cache_file = "%s/%s.txt" % (config.processed_base_dir, search_conf.name)
 
-    with ThreadPoolExecutor() as executor, open(cache_file, "a+") as processed_repos_file, \
+    with ThreadPoolExecutor(max_workers=workers) as executor, open(cache_file, "a+") as processed_repos_file, \
             open(log_file, "a+", encoding="UTF-8") as logs_file:
 
         # Apparently there is no mode to open/create a file for read/write from the beginning
@@ -168,6 +168,7 @@ if __name__ == '__main__':
         upper_date_limit = datetime.now().date()
 
     ghub = Github(login_or_token=config.access_token, per_page=100)
-    searcher = RepoSearcher(ghub, upper_date_limit, max_empty_months=12, languages=search_conf.languages, **config.search_params)
+    searcher = RepoSearcher(ghub, upper_date_limit, max_empty_months=12, languages=search_conf.languages,
+                            **config.search_params)
 
     execute_search(search_conf, searcher, config.worker_count)
