@@ -4,6 +4,8 @@
 
 import re
 
+# ----- SQL INJECTIONS ----- #
+
 # https://regexr.com/3iifi
 php_sql_config = {
     "name": "php-sqlinj",
@@ -40,6 +42,8 @@ node_sql_config = {
         re.IGNORECASE | re.MULTILINE)
 }
 
+# ----- CROSS SITE SCRIPTING ----- #
+
 # https://regexr.com/3ie5u
 php_xss_config = {
     "name": "php-xss",
@@ -50,12 +54,16 @@ php_xss_config = {
     "regex": re.compile(b"(echo \$_GET\[[\"\'][A-z0-9-_]*[\"\']\])", re.IGNORECASE | re.MULTILINE)
 }
 
-# https://regexr.com/3ie6d
+# ----- BUFFER OVERFLOW ----- #
+
+# https://regexr.com/3ik3a
 bo_cpp_config = {
     "name": "cpp-bo",
     "description": "Searches for Buffer Overflows in C and C++ code",
     # String tuples with a single element must always have a trailing comma or they are interpreted as single string
     "languages": ("c", "cpp"),
     "file_types": ("cpp", "c"),
-    "regex": re.compile(b"((printf|strcpy|strcmp)\(.*,\s*.*\))", re.IGNORECASE | re.MULTILINE)
+    "regex": re.compile(
+        b"(((strcpy|strcat|sprintf|vsprintf|scanf|printf)\(([A-Za-z0-9.,\-_>\s*&]+|(\"%[A-Za-z0-9]+\"))\))|(gets\([A-Za-z0-9\-_>.\s*&]+\)))",
+        re.IGNORECASE | re.MULTILINE)
 }
