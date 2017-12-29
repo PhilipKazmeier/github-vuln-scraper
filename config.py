@@ -19,6 +19,7 @@ logs_base_dir = "logs"
 php_sql_config = {
     "name": "php-sqlinj",
     "description": "Searches for SQL injections in PHP code",
+    # String tuples with a single element must always have a trailing comma or they are interpreted as single string
     "languages": ("php", "html"),
     "file_types": ("php", "html"),
     "regex": re.compile(
@@ -30,6 +31,7 @@ php_sql_config = {
 php_simple_sql_config = {
     "name": "php-simp-sqlinj",
     "description": "Searches for SQL injections in PHP code with _GET or _POST or _REQUEST",
+    # String tuples with a single element must always have a trailing comma or they are interpreted as single string
     "languages": ("php", "html"),
     "file_types": ("php", "html"),
     "regex": re.compile(
@@ -41,8 +43,9 @@ php_simple_sql_config = {
 node_sql_config = {
     "name": "node-sqlinj",
     "description": "Searches for SQL injections in NodeJS/Javascript code",
-    "languages": ("js"),
-    "file_types": ("js"),
+    # String tuples with a single element must always have a trailing comma or they are interpreted as single string
+    "languages": ("js", ),
+    "file_types": ("js", ),
     "regex": re.compile(
         b"([\"|\']\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s.*?[\"|\']\s*\+\s*[a-zA-Z_0-9]+)",
         re.IGNORECASE | re.MULTILINE)
@@ -52,7 +55,8 @@ node_sql_config = {
 php_xss_config = {
     "name": "php-xss",
     "description": "Searches for XSS in PHP code",
-    "languages": ("php"),
+    # String tuples with a single element must always have a trailing comma or they are interpreted as single string
+    "languages": ("php", ),
     "file_types": ("php", "html"),
     "regex": re.compile(b"(echo \$_GET\[[\"\'][A-z0-9-_]*[\"\']\])", re.IGNORECASE | re.MULTILINE)
 }
@@ -61,6 +65,7 @@ php_xss_config = {
 bo_cpp_config = {
     "name": "cpp-bo",
     "description": "Searches for Buffer Overflows in C and C++ code",
+    # String tuples with a single element must always have a trailing comma or they are interpreted as single string
     "languages": ("c", "cpp"),
     "file_types": ("cpp", "c"),
     "regex": re.compile(b"((printf|strcpy|strcmp)\(.*,\s*.*\))", re.IGNORECASE | re.MULTILINE)
