@@ -1,19 +1,8 @@
+#
+# This file holds all configurations for the crawler and their corresponding regex patterns.
+#
+
 import re
-from types import SimpleNamespace
-
-worker_count = 8
-access_token = "***REMOVED***"
-
-# Search parameters for the GitHub API
-# github_repo_query = 'stars:75..150 pushed:>2017-01-08 size:<=10000'
-search_params = {
-    "stars": (75, 150),
-    "last_accessed": "2017-01-08",
-    "max_size": 10000,
-}
-
-processed_base_dir = "processed"
-logs_base_dir = "logs"
 
 # https://regexr.com/3iifi
 php_sql_config = {
@@ -44,8 +33,8 @@ node_sql_config = {
     "name": "node-sqlinj",
     "description": "Searches for SQL injections in NodeJS/Javascript code",
     # String tuples with a single element must always have a trailing comma or they are interpreted as single string
-    "languages": ("js", ),
-    "file_types": ("js", ),
+    "languages": ("js",),
+    "file_types": ("js",),
     "regex": re.compile(
         b"([\"|\']\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s.*?[\"|\']\s*\+\s*[a-zA-Z_0-9]+)",
         re.IGNORECASE | re.MULTILINE)
@@ -56,7 +45,7 @@ php_xss_config = {
     "name": "php-xss",
     "description": "Searches for XSS in PHP code",
     # String tuples with a single element must always have a trailing comma or they are interpreted as single string
-    "languages": ("php", ),
+    "languages": ("php",),
     "file_types": ("php", "html"),
     "regex": re.compile(b"(echo \$_GET\[[\"\'][A-z0-9-_]*[\"\']\])", re.IGNORECASE | re.MULTILINE)
 }
@@ -70,11 +59,3 @@ bo_cpp_config = {
     "file_types": ("cpp", "c"),
     "regex": re.compile(b"((printf|strcpy|strcmp)\(.*,\s*.*\))", re.IGNORECASE | re.MULTILINE)
 }
-
-configs = {c["name"]: SimpleNamespace(**c) for c in (
-    php_sql_config,
-    php_simple_sql_config,
-    node_sql_config,
-    php_xss_config,
-    bo_cpp_config
-)}

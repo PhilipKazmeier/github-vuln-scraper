@@ -6,19 +6,18 @@
 # IMPORTS
 import os
 import sys
-import time
 import mmap
 from queue import Queue
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from git import Git
-from github import Github, RateLimitExceededException
+from github import Github
 from shutil import rmtree
 
-import config
-from RepoSearcher import RepoSearcher
+from conf import config
+from lib.RepoSearcher import RepoSearcher
 
 
 def check_contents(data, pattern):

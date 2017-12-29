@@ -43,9 +43,25 @@ def _get_utc_timestamp():
 
 
 class RepoSearcher:
-    def __init__(self, ghub, now_date, max_empty_months, ignored_repos=[], **kwargs):
+    """
+    Helper class for looping through repositories queried from GitHub.
+    This class is optimized to work in a multithreaded context and can be used in such without any further modifications.
+    """
+
+    def __init__(self, ghub, search_date=datetime.now().date(), max_empty_months=0, ignored_repos=None, **kwargs):
+        """
+        Creates a new RepoSearcher.
+              
+        :param ghub: Authenticated GitHub instance 
+        :param search_date: Date that determines before which date the search will start (Default: today)
+        :param max_empty_months: Allowed number of consecutive months without repository results (Default: 0)
+        :param ignored_repos: List of repositories that should be ignored (Default: Empty List)
+        :param kwargs: Arguments used for the GitHub query building
+        """
+        if ignored_repos is None:
+            ignored_repos = []
         self._ghub = ghub
-        self._cur_date = now_date
+        self._cur_date = search_date
         self._max_empty_months = max_empty_months
         self._search_params = kwargs
         self._ignored_repos = ignored_repos
@@ -55,6 +71,11 @@ class RepoSearcher:
         self._cur_index = 0
 
     def set_ignored(self, repos):
+        """
+        Overrides the list of ignored repositories used in the RepoSearcher.
+        
+        :param repos: List of repositories to ignore
+        """
         self._lock.acquire()
         try:
             self._ignored_repos = repos
@@ -90,7 +111,7 @@ class RepoSearcher:
         return item
 
     def _find_next_nonempty_month(self):
-        for _ in range(self._max_empty_months):
+        for _ in range(self._max_empty_months + 1):
             self._load_next_month()
             if self._list_has_next():
                 return True
