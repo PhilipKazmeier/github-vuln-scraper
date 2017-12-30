@@ -92,7 +92,7 @@ class RepoSearcher:
     def _find_next_new(self):
         while True:
             repo = self._do_get_next()
-            if repo.full_name not in self._ignored_repos:
+            if repo is None or repo.full_name not in self._ignored_repos:
                 return repo
 
     def _do_get_next(self):
@@ -130,5 +130,5 @@ class RepoSearcher:
         remaining_tries = self._ghub.rate_limiting[0]
         seconds_to_reset = max(self._ghub.rate_limiting_resettime - _get_utc_timestamp(), 0)
 
-        if remaining_tries < 1:
+        if remaining_tries < 2:
             time.sleep(seconds_to_reset + 1)

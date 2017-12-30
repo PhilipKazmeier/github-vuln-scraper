@@ -29,8 +29,10 @@ def check_contents(data, pattern):
     for match in matches:
         if match is str:
             result.append(match)
+        elif match is int:
+            result.append(str(match))
         else:
-            result.append(match[0])
+            result.append(str(match[0]))
     return result
 
 
@@ -62,16 +64,19 @@ def check_folder(folder, file_types, search_pattern):
 def clone_repository(root_dir, repo):
     # Clones the given repo in a folder in the given directory
     clone_path = "%s/%s" % (root_dir, repo.owner.login)
+    repo_dir = "%s/%s" % (root_dir, repo.full_name)
     if not os.path.exists(clone_path):
         os.makedirs(clone_path, exist_ok=True)
-    Git(clone_path).clone(repo.clone_url, "--depth", "1")
-    return "%s/%s" % (root_dir, repo.full_name)
+    # do not clone the repo if the folder exists and is not empty
+    if not os.path.exists(repo_dir) or not os.listdir(repo_dir):
+        Git(clone_path).clone(repo.clone_url, "--depth", "1")
+    return repo_dir
 
 
 def check_repository(repo, search_conf):
     # Checks the repository with the given search configuration
     try:
-        path = clone_repository("tmp", repo)
+        path = clone_repository("%s/%s" % (config.tmp_base_dir, search_conf.name), repo)
         results = check_folder(path, search_conf.file_types, search_conf.regex)
         rmtree(path)
 
@@ -155,7 +160,7 @@ if __name__ == '__main__':
         print("Please specify one of the following search config names:")
         for key in config.configs:
             print("  %15s: %s" % (key, config.configs[key].description))
-        print("You are able to specify the upper date bound as second parameter in the format YYYY-MM-DD")
+        print("\nYou are able to specify the upper date bound as second parameter in the format YYYY-MM-DD")
         sys.exit(1)
 
     search_conf = config.configs[sys.argv[1]]

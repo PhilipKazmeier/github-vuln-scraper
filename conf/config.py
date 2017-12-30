@@ -18,6 +18,7 @@ search_params = {
 
 processed_base_dir = "processed"
 logs_base_dir = "logs"
+tmp_base_dir = "tmp"
 
 configs = {c["name"]: SimpleNamespace(**c) for c in (
     patterns.php_sql_config,
