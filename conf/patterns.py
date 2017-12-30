@@ -42,6 +42,17 @@ node_sql_config = {
         re.IGNORECASE | re.MULTILINE)
 }
 
+java_sql_config = {
+    "name": "java-sqlinj",
+    "description": "Searches for SQL injections in Java SQL Code",
+    # String tuples with a single element must always have a trailing comma or they are interpreted as single string
+    "languages": ("java", ),
+    "file_types": ("java", ),
+    "regex": re.compile(
+        b"(\.executeQuery\(.*?\))",
+        re.IGNORECASE | re.MULTILINE)
+}
+
 # ----- CROSS SITE SCRIPTING ----- #
 
 # https://regexr.com/3ie5u
