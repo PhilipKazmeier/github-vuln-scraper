@@ -138,6 +138,7 @@ def execute_search(search_conf, searcher, workers):
                     write_to_file(logs_file, "##### Checked repository: %s" % repo.full_name)
                     write_to_file(logs_file, "### URL: %s" % repo.html_url)
                     write_to_file(logs_file, "### Description: %s" % repo.description)
+                    write_to_file(logs_file, "### Stars: %i" % repo.stargazers_count)
                     for dname, fname, matches in file_matches:
                         write_to_file(logs_file, "\tPossibly vulnerable file: %s/%s" % (dname, fname))
                         for match in matches:
