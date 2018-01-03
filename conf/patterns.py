@@ -86,5 +86,5 @@ bo_cpp_strcpy_config = {
     # String tuples with a single element must always have a trailing comma or they are interpreted as single string
     "languages": ("c", "cpp"),
     "file_types": ("cpp", "c"),
-    "regex": re.compile(b"(char.*\[10\];(.*[^{}]\s+\n)*?.*strcpy\(.*\))", re.IGNORECASE | re.MULTILINE)
+    "regex": re.compile(b"(char.*\[.*\];(.*[^{}]\s+\n)*?.*strcpy\(.*\))", re.IGNORECASE | re.MULTILINE)
 }
