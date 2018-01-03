@@ -46,8 +46,8 @@ java_sql_config = {
     "name": "java-sqlinj",
     "description": "Searches for SQL injections in Java SQL Code",
     # String tuples with a single element must always have a trailing comma or they are interpreted as single string
-    "languages": ("java", ),
-    "file_types": ("java", ),
+    "languages": ("java",),
+    "file_types": ("java",),
     "regex": re.compile(
         b"(\.executeQuery\(.*?\))",
         re.IGNORECASE | re.MULTILINE)
@@ -77,4 +77,14 @@ bo_cpp_config = {
     "regex": re.compile(
         b"(((strcpy|strcat|sprintf|vsprintf|scanf|printf)\(([A-Za-z0-9.,\-_>\s*&]+|(\"%[A-Za-z0-9]+\"))\))|(gets\([A-Za-z0-9\-_>.\s*&]+\)))",
         re.IGNORECASE | re.MULTILINE)
+}
+
+# https://regexr.com/3ingq
+bo_cpp_strcpy_config = {
+    "name": "cpp-bo-strcpy",
+    "description": "Searches for Buffer Overflows in the usage of strcpy in C and C++ code",
+    # String tuples with a single element must always have a trailing comma or they are interpreted as single string
+    "languages": ("c", "cpp"),
+    "file_types": ("cpp", "c"),
+    "regex": re.compile(b"(char.*\[10\];(.*[^{}]\s+\n)*?.*strcpy\(.*\))", re.IGNORECASE | re.MULTILINE)
 }
