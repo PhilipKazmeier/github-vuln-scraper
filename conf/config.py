@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from conf import patterns
 
 worker_count = 8
-access_token = "***REMOVED***"
+access_token = "PERSONAL_ACCESS_TOKEN"
 
 # Search parameters for the GitHub API
 # github_repo_query = 'stars:75..150 pushed:>2017-01-08 size:<=10000'
