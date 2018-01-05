@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 #
 # Crawler for vulnerabilities on GitHub
 #
@@ -27,12 +29,14 @@ def check_contents(data, pattern):
     # As result set we return the content of the first group for each matched regular expression
     result = []
     for match in matches:
-        if match is str:
+        if isinstance(match, str):
             result.append(match)
-        elif match is int:
+        elif isinstance(match, int):
             result.append(str(match))
+        elif isinstance(match, tuple):
+            result.append(match[2].decode("UTF-8"))
         else:
-            result.append(str(match[0]))
+            result.append(match)
     return result
 
 
@@ -143,16 +147,17 @@ def execute_search(search_conf, searcher, workers):
                         write_to_file(logs_file, "\tPossibly vulnerable file: %s/%s" % (dname, fname))
                         for match in matches:
                             # truncate line to a max length of 150 characters
-                            line = "\t\t%s" % match.decode("UTF-8")
+                            line = "\t\t%s" % match
                             line = (line[:150] + ' ...') if len(line) > 150 else line
                             write_to_file(logs_file, line)
                     write_to_file(logs_file, "")
 
                 processed_repos_file.write(repo.full_name + "\n")
                 processed_repos_file.flush()
-
         except KeyboardInterrupt as e:
             return
+        except Exception as e:
+            print("Unexpected error:", sys.exc_info()[0])
 
 
 if __name__ == '__main__':

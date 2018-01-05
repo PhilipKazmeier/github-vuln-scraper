@@ -13,7 +13,7 @@ access_token = "***REMOVED***"
 search_params = {
     "stars": (75, 150),
     "last_accessed": "2017-01-08",
-    "max_size": 50000,
+    "max_size": 10000,
 }
 
 processed_base_dir = "processed"

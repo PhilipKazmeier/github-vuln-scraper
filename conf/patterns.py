@@ -55,14 +55,14 @@ java_sql_config = {
 
 # ----- CROSS SITE SCRIPTING ----- #
 
-# https://regexr.com/3ie5u
+# https://regexr.com/3iqr7
 php_xss_config = {
     "name": "php-xss",
     "description": "Searches for XSS in PHP code",
     # String tuples with a single element must always have a trailing comma or they are interpreted as single string
     "languages": ("php",),
     "file_types": ("php", "html"),
-    "regex": re.compile(b"(echo \$_GET\[[\"\'][A-z0-9-_]*[\"\']\])", re.IGNORECASE | re.MULTILINE)
+    "regex": re.compile(b"(echo \$(_GET\[[\"\'][A-z0-9-_]*[\"\']\]))", re.IGNORECASE | re.MULTILINE)
 }
 
 # ----- BUFFER OVERFLOW ----- #
