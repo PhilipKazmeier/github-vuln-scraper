@@ -26,19 +26,19 @@ def check_contents(data, pattern):
     # Checks if the given data contains a match for the given query
     matches = pattern.findall(data)
 
-    # As result set we return the content of the first group for each matched regular expression
     result = []
     for match in matches:
         if isinstance(match, str):
             result.append(match)
         elif isinstance(match, int):
             result.append(str(match))
-        elif isinstance(match, tuple):
-            for val in match:
-                if isinstance(val, bytes):
-                    val = val.decode("UTF-8")
-                if len(val) > 0:
-                    result.append(val)
+        elif isinstance(match, tuple) and len(match) > 0:
+            val = match[0]
+            # As result set we return the content of the first group for each matched regular expression
+            if isinstance(val, bytes):
+                val = val.decode("UTF-8")
+            if len(val) > 0:
+                result.append(val)
         else:
             result.append(match)
     return result
