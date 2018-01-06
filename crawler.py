@@ -34,7 +34,11 @@ def check_contents(data, pattern):
         elif isinstance(match, int):
             result.append(str(match))
         elif isinstance(match, tuple):
-            result.append(match[2].decode("UTF-8"))
+            for val in match:
+                if isinstance(val, bytes):
+                    val = val.decode("UTF-8")
+                if len(val) > 0:
+                    result.append(val)
         else:
             result.append(match)
     return result

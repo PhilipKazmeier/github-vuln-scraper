@@ -65,6 +65,16 @@ php_xss_config = {
     "regex": re.compile(b"(echo \$(_GET\[[\"\'][A-z0-9-_]*[\"\']\]))", re.IGNORECASE | re.MULTILINE)
 }
 
+# https://regexr.com/3irjj
+js_xss_config = {
+    "name": "js-xss",
+    "description": "Searches for XSS in Javacript code",
+    # String tuples with a single element must always have a trailing comma or they are interpreted as single string
+    "languages": ("js",),
+    "file_types": ("js", "html"),
+    "regex": re.compile(b"(\.searchParams.get\(.*?\))|(\.split\(\"&\"\))", re.IGNORECASE | re.MULTILINE)
+}
+
 # ----- BUFFER OVERFLOW ----- #
 
 # https://regexr.com/3ik3a
