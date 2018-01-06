@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from conf import patterns
 
 worker_count = 8
-access_token = "PERSONAL_ACCESS_TOKEN"
 
 # Search parameters for the GitHub API
 # github_repo_query = 'stars:75..150 pushed:>2017-01-08 size:<=10000'
@@ -19,6 +18,7 @@ search_params = {
 processed_base_dir = "processed"
 logs_base_dir = "logs"
 tmp_base_dir = "tmp"
+github_token_fname = "github_token.txt"
 
 configs = {c["name"]: SimpleNamespace(**c) for c in (
     patterns.php_sql_config,

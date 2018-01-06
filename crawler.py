@@ -108,6 +108,13 @@ def worker_fn(result_queue, searcher, search_conf):
             raise e
 
 
+def read_api_token(path):
+    with open(path, "r") as f:
+        token_raw = f.readline()
+    token = token_raw.strip(" \t\n\r")
+    return token
+
+
 def write_to_file(output_file, data):
     # write the given data to the given file
     output_file.write(data + "\n")
@@ -181,7 +188,15 @@ if __name__ == '__main__':
     else:
         upper_date_limit = datetime.now().date()
 
-    ghub = Github(login_or_token=config.access_token, per_page=100)
+    print("Reading Github API token from: %s" % config.github_token_fname)
+    try:
+        access_token = read_api_token(config.github_token_fname)
+    except Exception as e:
+        print("Unable to read the Github API token: %s" % e)
+        print("Please put the access token in a file called \"%s\" in the root directory." % config.github_token_fname)
+        sys.exit(1)
+
+    ghub = Github(login_or_token=access_token, per_page=100)
     searcher = RepoSearcher(ghub, upper_date_limit, max_empty_months=12, languages=search_conf.languages,
                             **config.search_params)
 
