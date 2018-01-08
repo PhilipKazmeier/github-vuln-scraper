@@ -4,6 +4,20 @@
 
 import re
 
+'''
+Template for new config:
+config = {
+    "name": "language-attack",
+    "description": "Describe your config",
+    # String tuples with a single element must always have a trailing comma or they are interpreted as single string
+    "language": ("lang",),
+    "file_types": ("type",),
+    # Important: Keep the proceeding three matches
+    "regex": re.compile(b"\n(.*)\n(.*)\n(.*)(INSERT YOUR REGEX HERE)",
+        re.IGNORECASE | re.MULTILINE)
+}
+'''
+
 # ----- SQL INJECTIONS ----- #
 
 # https://regexr.com/3iifi
@@ -14,7 +28,7 @@ php_sql_config = {
     "languages": ("php", "html"),
     "file_types": ("php", "html"),
     "regex": re.compile(
-        b"(\"\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s+.*?({?\$[a-zA-Z_0-9]+}?).*?\")",
+        b"\n(.*)\n(.*)\n(.*)(\"\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s+.*?({?\$[a-zA-Z_0-9]+}?).*?\")",
         re.IGNORECASE | re.MULTILINE)
 }
 
@@ -26,7 +40,7 @@ php_simple_sql_config = {
     "languages": ("php", "html"),
     "file_types": ("php", "html"),
     "regex": re.compile(
-        b"(\"\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s+.*?({?_(GET|POST|REQUEST)\[.*?\]))",
+        b"\n(.*)\n(.*)\n(.*)(\"\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s+.*?({?_(GET|POST|REQUEST)\[.*?\]))",
         re.IGNORECASE | re.MULTILINE)
 }
 
@@ -38,7 +52,7 @@ node_sql_config = {
     "languages": ("js",),
     "file_types": ("js",),
     "regex": re.compile(
-        b"([\"|\']\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s.*?[\"|\']\s*\+\s*[a-zA-Z_0-9]+)",
+        b"\n(.*)\n(.*)\n(.*)([\"|\']\s*(SELECT|INSERT|DELETE).*?\s(FROM|INTO)\s+?.*?(WHERE|VALUES)\s.*?[\"|\']\s*\+\s*[a-zA-Z_0-9]+)",
         re.IGNORECASE | re.MULTILINE)
 }
 
@@ -49,7 +63,7 @@ java_sql_config = {
     "languages": ("java",),
     "file_types": ("java",),
     "regex": re.compile(
-        b"(\.executeQuery\(.*?\))",
+        b"\n(.*)\n(.*)\n(.*)(\.executeQuery\(.*?\))",
         re.IGNORECASE | re.MULTILINE)
 }
 
@@ -62,7 +76,7 @@ php_xss_config = {
     # String tuples with a single element must always have a trailing comma or they are interpreted as single string
     "languages": ("php",),
     "file_types": ("php", "html"),
-    "regex": re.compile(b"(echo \$(_GET\[[\"\'][A-z0-9-_]*[\"\']\]))", re.IGNORECASE | re.MULTILINE)
+    "regex": re.compile(b"\n(.*)\n(.*)\n(.*)(echo \$(_GET\[[\"\'][A-z0-9-_]*[\"\']\]))", re.IGNORECASE | re.MULTILINE)
 }
 
 # https://regexr.com/3irjj
@@ -72,7 +86,8 @@ js_xss_config = {
     # String tuples with a single element must always have a trailing comma or they are interpreted as single string
     "languages": ("js",),
     "file_types": ("js", "html"),
-    "regex": re.compile(b"(\.searchParams.get\(.*?\))|(\.split\(\"&\"\))", re.IGNORECASE | re.MULTILINE)
+    "regex": re.compile(b"\n(.*)\n(.*)\n(.*)(\.searchParams.get\(.*?\))|(\.split\(\"&\"\))",
+                        re.IGNORECASE | re.MULTILINE)
 }
 
 # ----- BUFFER OVERFLOW ----- #
@@ -85,7 +100,7 @@ bo_cpp_config = {
     "languages": ("c", "cpp"),
     "file_types": ("cpp", "c"),
     "regex": re.compile(
-        b"(((strcpy|strcat|sprintf|vsprintf|scanf|printf)\(([A-Za-z0-9.,\-_>\s*&]+|(\"%[A-Za-z0-9]+\"))\))|(gets\([A-Za-z0-9\-_>.\s*&]+\)))",
+        b"\n(.*)\n(.*)\n(.*)(((strcpy|strcat|sprintf|vsprintf|scanf|printf)\(([A-Za-z0-9.,\-_>\s*&]+|(\"%[A-Za-z0-9]+\"))\))|(gets\([A-Za-z0-9\-_>.\s*&]+\)))",
         re.IGNORECASE | re.MULTILINE)
 }
 
@@ -96,5 +111,6 @@ bo_cpp_strcpy_config = {
     # String tuples with a single element must always have a trailing comma or they are interpreted as single string
     "languages": ("c", "cpp"),
     "file_types": ("cpp", "c"),
-    "regex": re.compile(b"(char.*\[.*\];(.*[^{}]\s+\n)*?.*strcpy\(.*\))", re.IGNORECASE | re.MULTILINE)
+    "regex": re.compile(b"\n(.*)\n(.*)\n(.*)((strcpy)\(([A-Za-z0-9.,_\s*&]+|(\"%[A-Za-z0-9]+\"))\))",
+                        re.IGNORECASE | re.MULTILINE)
 }

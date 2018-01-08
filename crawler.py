@@ -32,13 +32,23 @@ def check_contents(data, pattern):
             result.append(match)
         elif isinstance(match, int):
             result.append(str(match))
-        elif isinstance(match, tuple) and len(match) > 0:
-            val = match[0]
-            # As result set we return the content of the first group for each matched regular expression
-            if isinstance(val, bytes):
-                val = val.decode("UTF-8")
-            if len(val) > 0:
-                result.append(val)
+        elif isinstance(match, tuple) and len(match) > 3:  # 3 context lines
+            res = ""
+            for i in range(4):
+                val = match[i]
+                # As result set we return the content of the first group for each matched regular expression
+                if isinstance(val, bytes):
+                    val = val.decode("UTF-8")
+                val = val.strip()
+                if len(val) <= 1:    # Remove all lines that contain one or less characters
+                    continue
+                # truncate line to a max length of 150 characters
+                val = (val[:150] + ' ...') if len(val) > 150 else val
+                res += val
+                if i < 2:
+                    res += "\n"
+            if len(res) > 0:
+                result.append(res)
         else:
             result.append(match)
     return result
@@ -154,12 +164,15 @@ def execute_search(search_conf, searcher, workers):
                     write_to_file(logs_file, "### URL: %s" % repo.html_url)
                     write_to_file(logs_file, "### Description: %s" % repo.description)
                     write_to_file(logs_file, "### Stars: %i" % repo.stargazers_count)
+
                     for dname, fname, matches in file_matches:
                         write_to_file(logs_file, "\tPossibly vulnerable file: %s/%s" % (dname, fname))
+                        matched = False
                         for match in matches:
-                            # truncate line to a max length of 150 characters
-                            line = "\t\t%s" % match
-                            line = (line[:150] + ' ...') if len(line) > 150 else line
+                            if matched:
+                                write_to_file(logs_file, "\t\t----------")
+                            matched = True
+                            line = "\t\t%s" % match.replace("\n", "\n\t\t")
                             write_to_file(logs_file, line)
                     write_to_file(logs_file, "")
 
